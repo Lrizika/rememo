@@ -106,16 +106,23 @@ class Memoizer:
 		params = self.process_params(args, kwargs)
 		self.results_cache[function][params] = result
 
-	def remove_from_cache(self, function: callable) -> None:
+	def remove_from_cache(self, function: callable, params: Optional[tuple] = None) -> None:
 		'''
-		Convenience method to clear a function from the cache.
+		Convenience method to clear a result or all results for a function from the cache.
 
 		Args:
 			function (callable): Function to clear from cache.
+			params (tuple, optional): A set of parameters for that function.
+				If provided, only the results for this set of params will be cleared.
+				If omitted, the results for all param sets for that function will be cleared.
 		'''
 
-		if function in self.results_cache:
-			del self.results_cache[function]
+		if params is not None:
+			if function in self.results_cache and params in self.results_cache[function]:
+				del self.results_cache[function][params]
+		else:
+			if function in self.results_cache:
+				del self.results_cache[function]
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
 		# TODO: Handle cache decay
