@@ -29,6 +29,7 @@ class Memoizer:
 
 	def __init__(
 			self,
+			use_generalized_make_hashable: bool = False,
 			sort_kwargs: bool = True,
 			kwarg_sort_func: callable = sorted,
 			accept_dict_args: bool = True,
@@ -38,6 +39,8 @@ class Memoizer:
 			accept_dict_kwargs: bool = True,
 	):
 		self.results_cache = {}
+
+		self.use_generalized_make_hashable = use_generalized_make_hashable
 		self.sort_kwargs = sort_kwargs
 		self.kwarg_sort_func = kwarg_sort_func
 		self.accept_dict_args = accept_dict_args
@@ -65,7 +68,8 @@ class Memoizer:
 				tuple of args and kwargs.
 		'''
 
-		# Convert function parameters to a hashable form
+		if self.use_generalized_make_hashable:
+			return Memoizer.make_hashable((param_args, param_kwargs))
 
 		if self.accept_dict_args:
 			processed_args = tuple([
@@ -198,6 +202,33 @@ class Memoizer:
 			return Memoizer.dict_to_hashable(potential_dict, **kwargs)
 		else:
 			return potential_dict
+
+	@staticmethod
+	def make_hashable(obj: Any) -> Hashable:
+		'''
+		A generalized function for making objects hashable.
+			Not the default method due to potential unexpected behaviour, but
+			provides a more powerful alternative than dict_to_hashable.
+
+		WARNING: Fails for self-referential objects, may occasionally cause
+			falsely-equating results.
+
+		Args:
+			obj (Any): The object to make hashable
+
+		Returns:
+			Hashable: The object, hopefully made hashable
+		'''
+
+		try:
+			hash(obj)  # Isinstance Hashable fails on nested objects
+			return obj
+		except TypeError:
+			if isinstance(obj, dict):
+				return tuple(sorted((Memoizer.make_hashable((key, value)) for key, value in obj.items())))
+			elif isinstance(obj, Iterable):
+				return tuple((Memoizer.make_hashable(value) for value in obj))
+			return json.dumps(obj)
 
 
 class OldMemoizer:
