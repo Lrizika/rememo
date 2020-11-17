@@ -92,12 +92,21 @@ class Memoizer:
 
 		return (processed_args, processed_kwargs)
 
-	def call_and_add_result(self, function: callable, *args, **kwargs) -> Any:
+	def _call_and_add_result(self, function: callable, *args, **kwargs) -> None:
+		'''
+		Calls the function and adds it to the cache.
+
+		Args:
+			function (callable): The function to run.
+			*args: Variable length argument list. Passed to function.
+			**kwargs: Arbitrary keyword arguments. Passed to function.
+		'''
+
 		result = function(*args, **kwargs)
 		params = self.process_params(args, kwargs)
 		self.results_cache[function][params] = result
 
-	def clear_cache(self, function: callable) -> None:
+	def remove_from_cache(self, function: callable) -> None:
 		'''
 		Convenience method to clear a function from the cache.
 
@@ -108,14 +117,38 @@ class Memoizer:
 		if function in self.results_cache:
 			del self.results_cache[function]
 
+	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
+		# TODO: Handle cache decay
+		# If the cache has a max size or whatnot, deal with it in the appropriate manner
+		pass
+
 	def get_result(self, function: callable, *args, **kwargs) -> Any:
+		'''
+		Gets the result of a function call with specific arguments.
+		If the function has been called through get_result before with these
+			parameters in this Memoizer, this will return the memoized result.
+		Otherwise, it will run the function and memoize the new result.
+
+		Args:
+			function (callable): The function to run.
+				This should *always* be idempotent or nullipotent.
+			*args: Variable length argument list. Passed to function.
+			**kwargs: Arbitrary keyword arguments. Passed to function.
+
+		Returns:
+			Any: The return value of function.
+		'''
+
 		if function not in self.results_cache:
 			self.results_cache[function] = {}
 
 		params = self.process_params(args, kwargs)
 
 		if params not in self.results_cache[function]:
-			self.call_and_add_result(function, *args, **kwargs)
+			self._call_and_add_result(function, *args, **kwargs)
+			self.handle_cache_decay(function, params, was_hit=False)
+		else:
+			self.handle_cache_decay(function, params, was_hit=True)
 
 		return self.results_cache[function][params]
 
