@@ -125,8 +125,15 @@ class Memoizer:
 				del self.results_cache[function]
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
-		# TODO: Handle cache decay
-		# If the cache has a max size or whatnot, deal with it in the appropriate manner
+		'''
+		Placeholder for handling cache changes. Subclasses should override this.
+
+		Args:
+			function (callable): Function called
+			params (tuple): Parameters to the call
+			was_hit (bool): Whether the call was a cache hit
+		'''
+
 		pass
 
 	def get_result(self, function: callable, *args, **kwargs) -> Any:
