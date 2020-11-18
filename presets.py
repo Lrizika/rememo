@@ -22,7 +22,22 @@ class TrackingMemoizer(Memoizer):
 		self.hits_by_func = {}
 		self.misses_by_func = {}
 
-		super().__init__(*args, **kwargs)
+		super(type(self), self).__init__(*args, **kwargs)
+
+	@classmethod
+	def with_superclass_factory(
+			cls,
+			new_superclass: type,
+			new_name: Optional[str] = None
+	) -> type:
+		if new_name is None:
+			new_name = f'_Tracking__{new_superclass.__name__}'
+
+		return type(new_name, (new_superclass, ), dict(cls.__dict__))
+
+	@classmethod
+	def get_tracking_instance(cls, of_class: type, *args, **kwargs) -> 'TrackingMemoizer':
+		return cls.with_superclass_factory(of_class)(*args, **kwargs)
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
 		'''
