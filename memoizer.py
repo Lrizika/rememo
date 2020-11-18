@@ -9,14 +9,17 @@ class Memoizer:
 	Class to facilitate memoization of function returns.
 
 	Attributes:
-		functions (
+		results_cache (
 			Dict[
 				callable: Dict[
-					Tuple[frozenset, frozenset]: Object
+					Tuple[
+						Tuple[Any, ...], Tuple[Tuple[Any, Any], ...]
+					]: Any
 				]
 			]
-		)
-		A dictionary of functions: dictionary of args: results
+		): A dictionary of functions: dictionary of args: results
+		hits_misses_total (List[int, int]): Total cache hits and misses
+		cache_hits_misses (dict, see `results_cache`): Cache hits/misses by func
 
 	Methods:
 		get_result: Gets the result of a function call, either
@@ -39,6 +42,8 @@ class Memoizer:
 			accept_dict_kwargs: bool = True,
 	):
 		self.results_cache = {}
+		self.hits_misses_total = [0, 0]
+		self.cache_hits_misses = {}
 
 		self.use_generalized_make_hashable = use_generalized_make_hashable
 		self.sort_kwargs = sort_kwargs
@@ -136,6 +141,25 @@ class Memoizer:
 
 		pass
 
+	def track_hits(self, function: callable, params: tuple, was_hit: bool) -> None:
+		'''
+		Tracks cache hits and misses.
+
+		Args:
+			function (callable): Function called
+			params (tuple): Parameters to the call
+			was_hit (bool): Whether the call was a cache hit
+		'''
+
+		if function not in self.cache_hits_misses:
+			self.cache_hits_misses[function] = {}
+		if params not in self.cache_hits_misses[function]:
+			self.cache_hits_misses[function][params] = [0, 0]
+
+		index = 0 if was_hit else 1
+		self.hits_misses_total[index] += 1
+		self.cache_hits_misses[function][params][index] += 1
+
 	def get_result(self, function: callable, *args, **kwargs) -> Any:
 		'''
 		Gets the result of a function call with specific arguments.
@@ -160,8 +184,10 @@ class Memoizer:
 
 		if params not in self.results_cache[function]:
 			self._call_and_add_result(function, *args, **kwargs)
+			self.track_hits(function, params, was_hit=False)
 			self.handle_cache_decay(function, params, was_hit=False)
 		else:
+			self.track_hits(function, params, was_hit=True)
 			self.handle_cache_decay(function, params, was_hit=True)
 
 		return self.results_cache[function][params]
