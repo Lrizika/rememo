@@ -30,13 +30,45 @@ class TrackingMemoizer(Memoizer):
 			new_superclass: type,
 			new_name: Optional[str] = None
 	) -> type:
+		'''
+		Create a Tracking version of `new_superclass`. For example, passing in
+			`Memoizer` for the `new_superclass` will provide a functionally
+			identical duplicate of the default TrackingMemoizer, which already
+			inherits from Memoizer.
+		Don't pass a TrackingX to new_superclass unless you want a recursion error.
+
+		Args:
+			new_superclass (type): The new superclass from which to create a
+				Tracking subclass
+			new_name (str, optional): The name for the resulting subclass.
+				Defaults to _Tracking__{SuperclassName}
+
+		Returns:
+			type: The new Tracking subclass.
+		'''
+
 		if new_name is None:
 			new_name = f'_Tracking__{new_superclass.__name__}'
 
 		return type(new_name, (new_superclass, ), dict(cls.__dict__))
 
 	@classmethod
-	def get_tracking_instance(cls, of_class: type, *args, **kwargs) -> 'TrackingMemoizer':
+	def get_tracking_instance(cls, of_class: type, *args, **kwargs) -> object:
+		'''
+		Helper function for when you only need one instance of a Tracking version
+			of a class. Gets the new Tracking subclass from `with_superclass_factory`
+			and instantiates it with the provided args.
+
+		Args:
+			of_class (type): The new superclass from which to create a Tracking
+				subclass instance
+			*args: Variable length argument list. Passed to new class instantiation.
+			**kwargs: Arbitrary keyword arguments. Passed to new class instantiation.
+
+		Returns:
+			object: The new Tracking subclass instance.
+		'''
+
 		return cls.with_superclass_factory(of_class)(*args, **kwargs)
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
@@ -68,7 +100,7 @@ class TrackingMemoizer(Memoizer):
 		Gets the number of hits and misses, either for a function or in total.
 
 		Args:
-			function (Optional[callable], optional):
+			function (callable, optional):
 				If provided, the function to retrieve the hits and misses for.
 				If omitted, instead retrieves hits and misses overall.
 
