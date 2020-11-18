@@ -1,7 +1,7 @@
 
 from typing import Optional, Tuple
 
-from rememo import Memoizer
+from memoizer import Memoizer
 
 
 class TrackingMemoizer(Memoizer):
