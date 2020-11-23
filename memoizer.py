@@ -37,6 +37,7 @@ class Memoizer:
 			dict_args_sort_func: callable = sorted,
 			recurse_dict_args: bool = True,
 			accept_dict_kwargs: bool = True,
+			**kwargs
 	):
 		self.results_cache = {}
 

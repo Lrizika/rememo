@@ -1,5 +1,6 @@
 
 from typing import Optional, Tuple
+from collections import deque
 
 from memoizer import Memoizer
 
@@ -16,60 +17,13 @@ class TrackingMemoizer(Memoizer):
 		misses_by_func (Dict[callable: int]): Number of cache misses per-function
 	'''
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, **kwargs):
 		self.hits_total = 0
 		self.misses_total = 0
 		self.hits_by_func = {}
 		self.misses_by_func = {}
 
-		super(TrackingMemoizer, self).__init__(*args, **kwargs)
-
-	@classmethod
-	def with_superclass_factory(
-			cls,
-			new_superclass: type,
-			new_name: Optional[str] = None
-	) -> type:
-		'''
-		Create a Tracking version of `new_superclass`. For example, passing in
-			`Memoizer` for the `new_superclass` will provide a functionally
-			identical duplicate of the default TrackingMemoizer, which already
-			inherits from Memoizer.
-		Don't pass a TrackingX to new_superclass unless you want a recursion error.
-
-		Args:
-			new_superclass (type): The new superclass from which to create a
-				Tracking subclass
-			new_name (str, optional): The name for the resulting subclass.
-				Defaults to _Tracking__{SuperclassName}
-
-		Returns:
-			type: The new Tracking subclass.
-		'''
-
-		if new_name is None:
-			new_name = f'_Tracking__{new_superclass.__name__}'
-
-		return type(new_name, (new_superclass, ), dict(cls.__dict__))
-
-	@classmethod
-	def get_tracking_instance(cls, of_class: type, *args, **kwargs) -> object:
-		'''
-		Helper function for when you only need one instance of a Tracking version
-			of a class. Gets the new Tracking subclass from `with_superclass_factory`
-			and instantiates it with the provided args.
-
-		Args:
-			of_class (type): The new superclass from which to create a Tracking
-				subclass instance
-			*args: Variable length argument list. Passed to new class instantiation.
-			**kwargs: Arbitrary keyword arguments. Passed to new class instantiation.
-
-		Returns:
-			object: The new Tracking subclass instance.
-		'''
-
-		return cls.with_superclass_factory(of_class)(*args, **kwargs)
+		super(TrackingMemoizer, self).__init__(**kwargs)
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
 		'''
@@ -93,7 +47,7 @@ class TrackingMemoizer(Memoizer):
 			self.misses_total += 1
 			self.misses_by_func[function] += 1
 
-		super().handle_cache_decay(self, function, params, was_hit)
+		super(TrackingMemoizer, self).handle_cache_decay(function, params, was_hit)
 
 	def get_hits_misses(self, function: Optional[callable] = None) -> Tuple[int, int]:
 		'''
@@ -112,3 +66,32 @@ class TrackingMemoizer(Memoizer):
 			return (self.hits_by_func[function], self.misses_by_func[function])
 		else:
 			return (self.hits_total, self.misses_total)
+
+
+class LRUCache(Memoizer):
+	'''
+	Memoizer with a basic LRU cache.
+	Attributes:
+		max_cache_size (int): Maximum size of the cache, by item count
+		cache_queue (collections.deque): Queue for tracking LRU cache
+	'''
+
+	def __init__(self, max_cache_size: int = 100, **kwargs):
+		self.max_cache_size = max_cache_size
+		self.cache_queue = deque()
+		# TODO: Replace deque with DLL + Hashmap for efficient ops
+
+		super(LRUCache, self).__init__(**kwargs)
+
+	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
+		fp = (function, params)
+		if was_hit:
+			self.cache_queue.remove(fp)
+		self.cache_queue.append(fp)
+
+		if len(self.cache_queue) > self.max_cache_size:
+			old_func, old_params = self.cache_queue.popleft()
+			del self.results_cache[old_func][old_params]
+
+		super(TrackingMemoizer, self).handle_cache_decay(function, params, was_hit)
+
