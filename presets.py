@@ -22,7 +22,7 @@ class TrackingMemoizer(Memoizer):
 		self.hits_by_func = {}
 		self.misses_by_func = {}
 
-		super(type(self), self).__init__(*args, **kwargs)
+		super(TrackingMemoizer, self).__init__(*args, **kwargs)
 
 	@classmethod
 	def with_superclass_factory(
