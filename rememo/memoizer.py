@@ -48,6 +48,9 @@ class Memoizer:
 		By default, this uses pickle.dumps
 
 		See Memoizer.__init__ for processing options.
+		Most importantly, if sort_kwargs is true kwargs will be sorted
+		by key first, preventing calls to the same function with different
+		kwarg ordering from being cached separately.
 
 		Args:
 			param_args (list): args to convert to a hashable form
@@ -58,6 +61,8 @@ class Memoizer:
 				For the default method of pickle.dumps, this is a bytes object
 		'''
 
+		if self.sort_kwargs is True:
+			param_kwargs = dict(self.kwarg_sort_func(param_kwargs.items()))
 		return self.make_hashable_func((param_args, param_kwargs))
 
 	def _call_and_add_result(self, function: callable, *args, **kwargs) -> None:
