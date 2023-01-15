@@ -2,7 +2,7 @@
 from typing import Optional, Tuple
 from collections import deque
 
-from memoizer import Memoizer
+from rememo import Memoizer
 
 
 class TrackingMemoizer(Memoizer):
