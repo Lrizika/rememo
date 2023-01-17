@@ -43,31 +43,62 @@ class RemoteCacheWrapper:
 			authkey: Optional[bytes] = None,
 	):
 		self.key_preprocessor = key_preprocessor
+		self.address = address
+		self.authkey = authkey
 		self._establish_manager(address, authkey)
 
 	def _establish_manager(self, address, authkey):
+		try:
+			print(f'Establishing cache server at address {address}.')
+			self.cache_server = CacheServer(
+				address=address,
+				authkey=authkey,
+			)
+		except Exception as _:
+			print(f'Server already exists at address {address}.')
+		self._connect(address, authkey)
+
+	def _connect(self, address, authkey):
+		print(f'Connecting to cache server at address {address}.')
 		self.manager = SyncManager(address=address, authkey=authkey)
 		self.manager.register('__getitem__')
 		self.manager.register('__setitem__')
 		self.manager.register('__delitem__')
 		self.manager.register('__contains__')
 		self.manager.connect()
+		print('Connected.')
 
 	def __getitem__(self, key):
 		key = self.key_preprocessor(key)
-		return self.manager[key]._getvalue()
+		try:
+			return self.manager[key]._getvalue()
+		except Exception:
+			self._establish_manager(self.address, self.authkey)
+			return self.manager[key]._getvalue()
 
 	def __setitem__(self, key, value):
 		key = self.key_preprocessor(key)
-		self.manager[key] = value
+		try:
+			self.manager[key] = value
+		except Exception:
+			self._establish_manager(self.address, self.authkey)
+			self.manager[key] = value
 
 	def __delitem__(self, key):
 		key = self.key_preprocessor(key)
-		del self.manager[key]
+		try:
+			del self.manager[key]
+		except Exception:
+			self._establish_manager(self.address, self.authkey)
+			del self.manager[key]
 
 	def __contains__(self, key):
 		key = self.key_preprocessor(key)
-		return self.manager.__contains__(key)._getvalue()
+		try:
+			return self.manager.__contains__(key)._getvalue()
+		except Exception:
+			self._establish_manager(self.address, self.authkey)
+			return self.manager.__contains__(key)._getvalue()
 
 
 class SharedMemoizer(Memoizer):
@@ -75,7 +106,10 @@ class SharedMemoizer(Memoizer):
 	Memoizer that can be shared across multiple processes
 		Uses multiprocessing.Manager
 	Attributes:
-		TODO
+		results_cache: A RemoteCacheWrapper instance.
+			This functions (nearly) identically to the results_cache on
+			a standard Memoizer, but is actually a wrapper that allows
+			access to a local or remote cache hosted by a CacheServer.
 	'''
 
 	def __init__(
@@ -86,21 +120,11 @@ class SharedMemoizer(Memoizer):
 			**kwargs
 	):
 		super().__init__(**kwargs)
-		try:
-			print(f'Establishing cache server at address {address}.')
-			self.cache_server = CacheServer(
-				address=address,
-				authkey=authkey,
-			)
-		except Exception as e:
-			print(f'Server already exists at address {address}.')
-		print(f'Connecting to cache server at address {address}.')
 		self.results_cache = RemoteCacheWrapper(
 			key_preprocessor=serialize_function_method,
 			address=address,
 			authkey=authkey
 		)
-		print('Connected.')
 
 	def _call_and_add_result(self, function: callable, *args, **kwargs) -> None:
 		'''
