@@ -1,6 +1,6 @@
 
 import pickle
-from typing import Iterable, Any, Hashable, Tuple, Optional
+from typing import Any, Hashable, Optional
 from functools import wraps
 
 
@@ -125,7 +125,6 @@ class Memoizer:
 		Returns:
 			Any: The return value of function.
 		'''
-
 		if function not in self.results_cache:
 			self.results_cache[function] = {}
 
@@ -155,7 +154,7 @@ class Memoizer:
 			Memoizer.memo, Memoizer.cache
 		'''
 
-		@wraps(self.get_result)
+		@wraps(function)
 		def get_result_wrapper(*args, **kwargs) -> Any:
 			return self.get_result(function, *args, **kwargs)
 
