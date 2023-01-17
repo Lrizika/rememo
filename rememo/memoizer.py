@@ -156,7 +156,12 @@ class Memoizer:
 
 		@wraps(function)
 		def get_result_wrapper(*args, **kwargs) -> Any:
-			return self.get_result(function, *args, **kwargs)
+			try:
+				return self.get_result(function, *args, **kwargs)
+			except Exception as e:
+				print(f'Memoization error: {e}')
+				print('Falling back to non-memoized call')
+				return function(*args, **kwargs)
 
 		return get_result_wrapper
 	memo = memoized
