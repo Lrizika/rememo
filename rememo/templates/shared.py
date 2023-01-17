@@ -81,7 +81,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			self.manager[key] = value
-		except Exception:
+		except Exception as e:
 			print(f'Failed to call __setitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			self.manager[key] = value
@@ -90,7 +90,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			del self.manager[key]
-		except Exception:
+		except Exception as e:
 			print(f'Failed to call __delitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			del self.manager[key]
@@ -99,7 +99,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			return self.manager.__contains__(key)._getvalue()
-		except Exception:
+		except Exception as e:
 			print(f'Failed to call __contains__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			return self.manager.__contains__(key)._getvalue()
