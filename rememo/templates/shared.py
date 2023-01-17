@@ -1,24 +1,8 @@
 
-import marshal
-import multiprocessing
 from multiprocessing.managers import SyncManager
-import pickle
 from typing import Optional, Tuple
 
 from rememo import Memoizer
-
-
-# def serialize_function(function: callable) -> Tuple[bytes, bytes, bytes, bytes]:
-# 	'''
-# 	Serializes a function to a hashable tuple of bytestrings
-# 	Used by SharedMemoizers as a default method of converting a callable to
-# 	a pickleable hashable for usage as a key to the result cache
-# 	'''
-# 	marshalled_code = marshal.dumps(function.__code__)
-# 	pickled_name = pickle.dumps(function.__name__)
-# 	pickled_defaults = pickle.dumps(function.__defaults__)
-# 	pickled_closure = pickle.dumps(function.__closure__)
-# 	return (marshalled_code, pickled_name, pickled_defaults, pickled_closure)
 
 
 def serialize_function(function: callable) -> str:
@@ -84,29 +68,6 @@ class RemoteCacheWrapper:
 	def __contains__(self, key):
 		key = self.key_preprocessor(key)
 		return self.manager.__contains__(key)._getvalue()
-
-	# def __len__(self):
-	# 	return len(self.cache)
-
-	# def __iter__(self):
-	# 	return iter(self.cache)
-
-	# def __reversed__(self):
-	# 	return reversed(self.cache)
-
-
-# class RemoteCacheWrapper(multiprocessing.managers.DictProxy):
-# 	def __init__(self, *args, key_preprocessor: callable, **kwargs) -> None:
-# 		self.key_preprocessor = key_preprocessor
-# 		super().__init__(*args, **kwargs)
-
-# 	def __setitem__(self, key, value):
-# 		key = self.key_preprocessor(key)
-# 		return super().__setitem__(self, key, value)
-
-# 	def __getitem__(self, key, value):
-# 		key = self.key_preprocessor(key)
-# 		return super().__getitem__(self, key, value)
 
 
 class SharedMemoizer(Memoizer):
