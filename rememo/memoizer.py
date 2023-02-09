@@ -93,12 +93,17 @@ class Memoizer:
 				If omitted, the results for all param sets for that function will be cleared.
 		'''
 
+		wrapped_func = getattr(function, '__wrapped__', None)
 		if params is not None:
 			if function in self.results_cache and params in self.results_cache[function]:
 				del self.results_cache[function][params]
+			if wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
+				del self.results_cache[wrapped_func][params]
 		else:
 			if function in self.results_cache:
 				del self.results_cache[function]
+			if wrapped_func in self.results_cache:
+				del self.results_cache[wrapped_func]
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
 		'''
