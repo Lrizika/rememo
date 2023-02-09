@@ -1,7 +1,10 @@
 
 import pickle
+import logging
 from typing import Any, Hashable, Optional
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 
 class Memoizer:
@@ -159,8 +162,9 @@ class Memoizer:
 			try:
 				return self.get_result(function, *args, **kwargs)
 			except Exception as e:
-				print(f'Memoization error: {e}')
-				print('Falling back to non-memoized call')
+				logging.error(f'Memoization error: {e}')
+				logging.warn(f'Falling back to non-memoized call for {function}')
+				logging.info(f'Args: {args}, kwargs: {kwargs}')
 				return function(*args, **kwargs)
 
 		return get_result_wrapper

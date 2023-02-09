@@ -1,5 +1,10 @@
+
+import logging
+
 from rememo.memoizer import Memoizer
 from rememo.templates import TrackingMemoizer
+
+logger = logging.getLogger(__name__)
 
 default_memoizer = Memoizer()
 memo = default_memoizer.memo

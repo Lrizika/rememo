@@ -1,7 +1,10 @@
 
+import logging
 from collections import deque
 
 from rememo import Memoizer
+
+logger = logging.getLogger(__name__)
 
 
 class LRUCache(Memoizer):

@@ -1,6 +1,10 @@
+
+import logging
 from typing import Optional, Tuple
 
 from rememo import Memoizer
+
+logger = logging.getLogger(__name__)
 
 
 class TrackingMemoizer(Memoizer):

@@ -1,8 +1,12 @@
 
+import logging
+
 from multiprocessing.managers import SyncManager
 from typing import Optional, Tuple
 
 from rememo import Memoizer
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_function(function: callable) -> str:
@@ -49,31 +53,31 @@ class RemoteCacheWrapper:
 
 	def _establish_manager(self, address, authkey):
 		try:
-			print(f'Establishing cache server at address {address}.')
+			logging.info(f'Establishing cache server at address {address}.')
 			self.cache_server = CacheServer(
 				address=address,
 				authkey=authkey,
 			)
 		except EOFError as _:
-			print(f'Server already exists at address {address}.')
+			logging.info(f'Server already exists at address {address}.')
 		self._connect(address, authkey)
 
 	def _connect(self, address, authkey):
-		print(f'Connecting to cache server at address {address}.')
+		logging.info(f'Connecting to cache server at address {address}.')
 		self.manager = SyncManager(address=address, authkey=authkey)
 		self.manager.register('__getitem__')
 		self.manager.register('__setitem__')
 		self.manager.register('__delitem__')
 		self.manager.register('__contains__')
 		self.manager.connect()
-		print('Connected.')
+		logging.info('Connected.')
 
 	def __getitem__(self, key):
 		key = self.key_preprocessor(key)
 		try:
 			return self.manager[key]._getvalue()
 		except ConnectionRefusedError as e:
-			print(f'Failed to call __getitem__ on cache server: {e}')
+			logging.warn(f'Failed to call __getitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			return self.manager[key]._getvalue()
 
@@ -82,7 +86,7 @@ class RemoteCacheWrapper:
 		try:
 			self.manager[key] = value
 		except ConnectionRefusedError as e:
-			print(f'Failed to call __setitem__ on cache server: {e}')
+			logging.warn(f'Failed to call __setitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			self.manager[key] = value
 
@@ -91,7 +95,7 @@ class RemoteCacheWrapper:
 		try:
 			del self.manager[key]
 		except ConnectionRefusedError as e:
-			print(f'Failed to call __delitem__ on cache server: {e}')
+			logging.warn(f'Failed to call __delitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			del self.manager[key]
 
@@ -100,7 +104,7 @@ class RemoteCacheWrapper:
 		try:
 			return self.manager.__contains__(key)._getvalue()
 		except ConnectionRefusedError as e:
-			print(f'Failed to call __contains__ on cache server: {e}')
+			logging.warn(f'Failed to call __contains__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			return self.manager.__contains__(key)._getvalue()
 
