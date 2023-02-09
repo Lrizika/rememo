@@ -48,23 +48,38 @@ class TestMemoizer(unittest.TestCase):
 		m = rememo.Memoizer()
 
 		@m.memo
-		def testfunc():
-			return time.time()
+		def testfunc(v):
+			return time.time(), v
 
-		result = testfunc()
-		second_result = testfunc()
+		result_2_1 = testfunc(2)
+		result_2_2 = testfunc(2)
 		self.assertEqual(
-			result,
-			second_result
+			result_2_1,
+			result_2_2
 		)
 
-		m.remove_from_cache(testfunc)
-		print(m.results_cache)
+		result_3_1 = testfunc(3)
+		# Remove a function with a specific parameter from the cache
+		m.remove_from_cache(testfunc, 2)
 
-		third_result = testfunc()
+		result_2_3 = testfunc(2)
 		self.assertNotEqual(
-			result,
-			third_result
+			result_2_1,
+			result_2_3
+		)
+
+		result_3_2 = testfunc(3)
+		self.assertEqual(
+			result_3_1,
+			result_3_2
+		)
+		# Remove a function entirely from the cache
+		m.remove_from_cache(testfunc)
+
+		result_3_3 = testfunc(3)
+		self.assertNotEqual(
+			result_3_1,
+			result_3_3
 		)
 
 
