@@ -82,9 +82,9 @@ class Memoizer:
 		params = self.process_params(args, kwargs)
 		self.results_cache[function][params] = result
 
-	def remove_from_cache(self, function: callable, params: Optional[tuple] = None) -> None:
+	def remove_from_cache(self, function: callable, *args, **kwargs) -> None:
 		'''
-		Convenience method to clear a result or all results for a function from the cache.
+		Clears a result or all results for a function from the cache.
 
 		Args:
 			function (callable): Function to clear from cache.
@@ -94,16 +94,25 @@ class Memoizer:
 		'''
 
 		wrapped_func = getattr(function, '__wrapped__', None)
-		if params is not None:
+		if args or kwargs:
+			params = self.process_params(args, kwargs)
 			if function in self.results_cache and params in self.results_cache[function]:
+				logging.debug(f'Removing unwrapped function {function} with params {params} from cache')
 				del self.results_cache[function][params]
-			if wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
+			elif wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
+				logging.debug(f'Removing wrapped function {function} with params {params} from cache')
 				del self.results_cache[wrapped_func][params]
+			else:
+				raise KeyError(f'Function {function} with params {params} not in cache')
 		else:
 			if function in self.results_cache:
+				logging.debug(f'Removing unwrapped function {function} from cache')
 				del self.results_cache[function]
-			if wrapped_func in self.results_cache:
+			elif wrapped_func in self.results_cache:
+				logging.debug(f'Removing wrapped function {function} from cache')
 				del self.results_cache[wrapped_func]
+			else:
+				raise KeyError(f'Function {function} not in cache')
 
 	def handle_cache_decay(self, function: callable, params: tuple, was_hit: bool) -> None:
 		'''
