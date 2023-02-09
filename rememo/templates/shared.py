@@ -54,7 +54,7 @@ class RemoteCacheWrapper:
 				address=address,
 				authkey=authkey,
 			)
-		except Exception as _:
+		except EOFError as _:
 			print(f'Server already exists at address {address}.')
 		self._connect(address, authkey)
 
@@ -72,7 +72,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			return self.manager[key]._getvalue()
-		except Exception as e:
+		except ConnectionRefusedError as e:
 			print(f'Failed to call __getitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			return self.manager[key]._getvalue()
@@ -81,7 +81,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			self.manager[key] = value
-		except Exception as e:
+		except ConnectionRefusedError as e:
 			print(f'Failed to call __setitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			self.manager[key] = value
@@ -90,7 +90,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			del self.manager[key]
-		except Exception as e:
+		except ConnectionRefusedError as e:
 			print(f'Failed to call __delitem__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			del self.manager[key]
@@ -99,7 +99,7 @@ class RemoteCacheWrapper:
 		key = self.key_preprocessor(key)
 		try:
 			return self.manager.__contains__(key)._getvalue()
-		except Exception as e:
+		except ConnectionRefusedError as e:
 			print(f'Failed to call __contains__ on cache server: {e}')
 			self._establish_manager(self.address, self.authkey)
 			return self.manager.__contains__(key)._getvalue()
@@ -120,7 +120,7 @@ class SharedMemoizer(Memoizer):
 			self,
 			serialize_function_method: callable = serialize_function,
 			address: Tuple[str, int] = ('localhost', 50000),
-			authkey: Optional[bytes] = None,
+			authkey: bytes = b'',
 			**kwargs
 	):
 		super().__init__(**kwargs)
