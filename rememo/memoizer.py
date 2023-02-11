@@ -143,6 +143,7 @@ class Memoizer:
 			Any: The return value of function.
 		'''
 		if function not in self.results_cache:
+			logger.debug(f'{self}: Adding {function} to cache')
 			self.results_cache[function] = {}
 
 		params = self.process_params(args, kwargs)
@@ -170,17 +171,19 @@ class Memoizer:
 		Aliases:
 			Memoizer.memo, Memoizer.cache
 		'''
+		logging.debug(f'{self}: Wrapping function {function}')
 
 		@wraps(function)
 		def get_result_wrapper(*args, **kwargs) -> Any:
 			try:
 				return self.get_result(function, *args, **kwargs)
 			except Exception as e:
-				logging.error(f'Memoization error: {e}')
+				logging.error(f'{self}: Memoization error: {e}')
 				logging.warn(f'Falling back to non-memoized call for {function}')
 				logging.info(f'Args: {args}, kwargs: {kwargs}')
 				return function(*args, **kwargs)
 
+		logging.debug(f'Wrapped function {get_result_wrapper} created')
 		return get_result_wrapper
 	memo = memoized
 	cache = memoized
