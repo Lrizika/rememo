@@ -2,7 +2,7 @@
 import logging
 
 from rememo.memoizer import Memoizer
-from rememo.templates import TrackingMemoizer
+from rememo.templates import TrackingMemoizer, SharedMemoizer
 
 logger = logging.getLogger(__name__)
 
