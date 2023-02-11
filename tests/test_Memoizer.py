@@ -44,6 +44,28 @@ class TestMemoizer(unittest.TestCase):
 			result
 		)
 
+	def test_get_result(self):
+		m = rememo.Memoizer()
+
+		called_count = 0
+
+		@m.memo
+		def testfunc(val):
+			nonlocal called_count
+			called_count += 1
+			return val + 2
+
+		testfunc(2)
+		testfunc(2)
+		m.get_result(testfunc.__wrapped__, 2)
+		self.assertEqual(called_count, 1)
+
+		m.get_result(testfunc.__wrapped__, 3)
+		self.assertEqual(called_count, 2)
+
+		m.get_result(testfunc, 5)
+		self.assertEqual(called_count, 3)
+
 	def test_cache_removal(self):
 		m = rememo.Memoizer()
 
