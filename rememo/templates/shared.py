@@ -36,6 +36,7 @@ class CacheServer:
 		self.manager.register('__contains__', self.cache.__contains__)
 		self.manager.register('__reversed__', self.cache.__reversed__)
 		self.manager.register('__iter__', self.cache.__iter__)
+		self.manager.register('__str__', self.cache.__str__)
 		self.manager.start()
 
 
@@ -108,6 +109,14 @@ class RemoteCacheWrapper:
 			self._establish_manager(self.address, self.authkey)
 			return self.manager.__contains__(key)._getvalue()
 
+	def __str__(self):
+		try:
+			return self.manager.__str__()._getvalue()
+		except ConnectionRefusedError as e:
+			logging.warn(f'Failed to call __str__ on cache server: {e}')
+			self._establish_manager(self.address, self.authkey)
+			return self.manager.__str__()._getvalue()
+
 
 class SharedMemoizer(Memoizer):
 	'''
@@ -148,3 +157,35 @@ class SharedMemoizer(Memoizer):
 		new_cache = self.results_cache[function]
 		new_cache[params] = result
 		self.results_cache[function] = new_cache
+
+	def remove_from_cache(self, function: callable, *args, **kwargs) -> None:
+		'''
+		Clears a result or all results for a function from the cache.
+		As with _call_and_add_result, we have to override this to work with
+		RemoteCacheWrappers properly
+		'''
+
+		wrapped_func = getattr(function, '__wrapped__', None)
+		if args or kwargs:
+			params = self.process_params(args, kwargs)
+			if function in self.results_cache and params in self.results_cache[function]:
+				logging.debug(f'Removing unwrapped function {function} with params {params} from cache')
+				local = self.results_cache[function]
+				del local[params]
+				self.results_cache[function] = local
+			elif wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
+				logging.debug(f'Removing wrapped function {function} with params {params} from cache')
+				local = self.results_cache[wrapped_func]
+				del local[params]
+				self.results_cache[wrapped_func] = local
+			else:
+				raise KeyError(f'Function {function} with params {params} not in cache')
+		else:
+			if function in self.results_cache:
+				logging.debug(f'Removing unwrapped function {function} from cache')
+				del self.results_cache[function]
+			elif wrapped_func in self.results_cache:
+				logging.debug(f'Removing wrapped function {function} from cache')
+				del self.results_cache[wrapped_func]
+			else:
+				raise KeyError(f'Function {function} not in cache')
