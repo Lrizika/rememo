@@ -26,9 +26,9 @@ class CacheServer:
 			authkey: Optional[bytes] = None,
 	):
 		self.cache = {}
-		self._establish_manager(address, authkey)
+		self._connect_or_establish_manager(address, authkey)
 
-	def _establish_manager(self, address, authkey):
+	def _connect_or_establish_manager(self, address, authkey):
 		self.manager = SyncManager(address=address, authkey=authkey)
 		self.manager.register('__getitem__', self.cache.__getitem__)
 		self.manager.register('__setitem__', self.cache.__setitem__)
@@ -50,18 +50,19 @@ class RemoteCacheWrapper:
 		self.key_preprocessor = key_preprocessor
 		self.address = address
 		self.authkey = authkey
-		self._establish_manager(address, authkey)
+		self._connect_or_establish_manager(address, authkey)
 
-	def _establish_manager(self, address, authkey):
+	def _connect_or_establish_manager(self, address, authkey):
 		try:
+			self._connect(address, authkey)
+		except ConnectionRefusedError as _:
+			logging.info('Failed to connect to cache server.')
 			logging.info(f'Establishing cache server at address {address}.')
 			self.cache_server = CacheServer(
 				address=address,
 				authkey=authkey,
 			)
-		except EOFError as _:
-			logging.info(f'Server already exists at address {address}.')
-		self._connect(address, authkey)
+			self._connect(address, authkey)
 
 	def _connect(self, address, authkey):
 		logging.info(f'Connecting to cache server at address {address}.')
@@ -79,7 +80,7 @@ class RemoteCacheWrapper:
 			return self.manager[key]._getvalue()
 		except ConnectionRefusedError as e:
 			logging.warn(f'Failed to call __getitem__ on cache server: {e}')
-			self._establish_manager(self.address, self.authkey)
+			self._connect_or_establish_manager(self.address, self.authkey)
 			return self.manager[key]._getvalue()
 
 	def __setitem__(self, key, value):
@@ -88,7 +89,7 @@ class RemoteCacheWrapper:
 			self.manager[key] = value
 		except ConnectionRefusedError as e:
 			logging.warn(f'Failed to call __setitem__ on cache server: {e}')
-			self._establish_manager(self.address, self.authkey)
+			self._connect_or_establish_manager(self.address, self.authkey)
 			self.manager[key] = value
 
 	def __delitem__(self, key):
@@ -97,7 +98,7 @@ class RemoteCacheWrapper:
 			del self.manager[key]
 		except ConnectionRefusedError as e:
 			logging.warn(f'Failed to call __delitem__ on cache server: {e}')
-			self._establish_manager(self.address, self.authkey)
+			self._connect_or_establish_manager(self.address, self.authkey)
 			del self.manager[key]
 
 	def __contains__(self, key):
@@ -106,7 +107,7 @@ class RemoteCacheWrapper:
 			return self.manager.__contains__(key)._getvalue()
 		except ConnectionRefusedError as e:
 			logging.warn(f'Failed to call __contains__ on cache server: {e}')
-			self._establish_manager(self.address, self.authkey)
+			self._connect_or_establish_manager(self.address, self.authkey)
 			return self.manager.__contains__(key)._getvalue()
 
 	def __str__(self):
@@ -114,7 +115,7 @@ class RemoteCacheWrapper:
 			return self.manager.__str__()._getvalue()
 		except ConnectionRefusedError as e:
 			logging.warn(f'Failed to call __str__ on cache server: {e}')
-			self._establish_manager(self.address, self.authkey)
+			self._connect_or_establish_manager(self.address, self.authkey)
 			return self.manager.__str__()._getvalue()
 
 
