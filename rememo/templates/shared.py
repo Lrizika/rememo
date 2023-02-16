@@ -53,16 +53,20 @@ class RemoteCacheWrapper:
 		self.authkey = authkey
 		self._connect_or_establish_manager(address, authkey)
 
+	def create_server(self, address, authkey):
+		logger.info(f'Establishing cache server at address {address}.')
+		self.cache_server = CacheServer(
+			address=address,
+			authkey=authkey,
+		)
+
 	def _connect_or_establish_manager(self, address, authkey):
 		try:
 			self._connect(address, authkey)
 		except ConnectionRefusedError as _:
-			logger.warn('Failed to connect to cache server.')
-			logger.warn(f'Establishing cache server at address {address}.')
-			self.cache_server = CacheServer(
-				address=address,
-				authkey=authkey,
-			)
+			logger.warn(f'Failed to connect to cache server at address {address}.')
+			logger.warn(f'Attempting to create new cache server.')
+			self.create_server(address, authkey)
 			self._connect(address, authkey)
 
 	def _connect(self, address, authkey):
