@@ -56,8 +56,8 @@ class RemoteCacheWrapper:
 		try:
 			self._connect(address, authkey)
 		except ConnectionRefusedError as _:
-			logging.info('Failed to connect to cache server.')
-			logging.info(f'Establishing cache server at address {address}.')
+			logging.warn('Failed to connect to cache server.')
+			logging.warn(f'Establishing cache server at address {address}.')
 			self.cache_server = CacheServer(
 				address=address,
 				authkey=authkey,
