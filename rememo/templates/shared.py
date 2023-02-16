@@ -46,7 +46,7 @@ class RemoteCacheWrapper:
 			self,
 			key_preprocessor: callable = lambda v: v,
 			address: Tuple[str, int] = ('localhost', 50000),
-			authkey: Optional[bytes] = None,
+			authkey: Optional[bytes] = b'',
 	):
 		self.key_preprocessor = key_preprocessor
 		self.address = address
