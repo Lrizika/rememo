@@ -97,19 +97,19 @@ class Memoizer:
 		if args or kwargs:
 			params = self.process_params(args, kwargs)
 			if function in self.results_cache and params in self.results_cache[function]:
-				logging.debug(f'Removing unwrapped function {function} with params {params} from cache')
+				logger.debug(f'Removing unwrapped function {function} with params {params} from cache')
 				del self.results_cache[function][params]
 			elif wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
-				logging.debug(f'Removing wrapped function {function} with params {params} from cache')
+				logger.debug(f'Removing wrapped function {function} with params {params} from cache')
 				del self.results_cache[wrapped_func][params]
 			else:
 				raise KeyError(f'Function {function} with params {params} not in cache')
 		else:
 			if function in self.results_cache:
-				logging.debug(f'Removing unwrapped function {function} from cache')
+				logger.debug(f'Removing unwrapped function {function} from cache')
 				del self.results_cache[function]
 			elif wrapped_func in self.results_cache:
-				logging.debug(f'Removing wrapped function {function} from cache')
+				logger.debug(f'Removing wrapped function {function} from cache')
 				del self.results_cache[wrapped_func]
 			else:
 				raise KeyError(f'Function {function} not in cache')
@@ -171,19 +171,19 @@ class Memoizer:
 		Aliases:
 			Memoizer.memo, Memoizer.cache
 		'''
-		logging.debug(f'{self}: Wrapping function {function}')
+		logger.debug(f'{self}: Wrapping function {function}')
 
 		@wraps(function)
 		def get_result_wrapper(*args, **kwargs) -> Any:
 			try:
 				return self.get_result(function, *args, **kwargs)
 			except Exception as e:
-				logging.error(f'{self}: Memoization error: {e}')
-				logging.warn(f'Falling back to non-memoized call for {function}')
-				logging.info(f'Args: {args}, kwargs: {kwargs}')
+				logger.error(f'{self}: Memoization error: {e}')
+				logger.warn(f'Falling back to non-memoized call for {function}')
+				logger.info(f'Args: {args}, kwargs: {kwargs}')
 				return function(*args, **kwargs)
 
-		logging.debug(f'Wrapped function {get_result_wrapper} created')
+		logger.debug(f'Wrapped function {get_result_wrapper} created')
 		return get_result_wrapper
 	memo = memoized
 	cache = memoized

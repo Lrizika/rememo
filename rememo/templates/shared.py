@@ -2,7 +2,8 @@
 import logging
 
 from multiprocessing.managers import SyncManager
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
+from functools import wraps
 
 from rememo import Memoizer
 
@@ -45,78 +46,88 @@ class RemoteCacheWrapper:
 			self,
 			key_preprocessor: callable = lambda v: v,
 			address: Tuple[str, int] = ('localhost', 50000),
-			authkey: Optional[bytes] = None,
+			authkey: Optional[bytes] = b'',
 	):
 		self.key_preprocessor = key_preprocessor
 		self.address = address
 		self.authkey = authkey
 		self._connect_or_establish_manager(address, authkey)
 
+	def create_server(self, address, authkey):
+		logger.info(f'Establishing cache server at address {address}.')
+		self.cache_server = CacheServer(
+			address=address,
+			authkey=authkey,
+		)
+
 	def _connect_or_establish_manager(self, address, authkey):
 		try:
 			self._connect(address, authkey)
 		except ConnectionRefusedError as _:
-			logging.warn('Failed to connect to cache server.')
-			logging.warn(f'Establishing cache server at address {address}.')
-			self.cache_server = CacheServer(
-				address=address,
-				authkey=authkey,
-			)
+			logger.warn(f'Failed to connect to cache server at address {address}.')
+			logger.warn(f'Attempting to create new cache server.')
+			self.create_server(address, authkey)
 			self._connect(address, authkey)
 
 	def _connect(self, address, authkey):
-		logging.info(f'Connecting to cache server at address {address}.')
+		logger.info(f'Connecting to cache server at address {address}.')
 		self.manager = SyncManager(address=address, authkey=authkey)
 		self.manager.register('__getitem__')
 		self.manager.register('__setitem__')
 		self.manager.register('__delitem__')
 		self.manager.register('__contains__')
 		self.manager.connect()
-		logging.info('Connected.')
+		logger.info('Connected.')
 
+	def _handle_remote_call(preprocess_key: bool = True):
+		"""
+		Decorator that provides exception handling and key preprocessing for
+		functions called on the cache manager.
+
+		Functions wrapped in this decorator will, upon receiving a
+		ConnectionRefusedError, attempt to reconnect to the cache manager. If
+		*that* fails, the RemoteCacheWrapper will attempt to create a new cache
+		manager and connect to that. If that *also* fails, an exception will be
+		raised.
+
+		Args:
+			preprocess_key (bool, optional): Whether this method should
+				preprocess the key, which must be the first argument to the
+				method. Defaults to True.
+		"""
+		def _handle_remote_call_decorator(function):
+			@wraps(function)
+			def remote_call_wrapper(self, *args, **kwargs) -> Any:
+				if preprocess_key is True:
+					args = (self.key_preprocessor(args[0]), *args[1:])
+				try:
+					return function(self, *args, **kwargs)
+				except ConnectionRefusedError as e:
+					logger.warn(f'Failed to call {function} on cache server: {e}')
+					self._connect_or_establish_manager(self.address, self.authkey)
+					return function(self, *args, **kwargs)
+			return remote_call_wrapper
+		return _handle_remote_call_decorator
+
+	@_handle_remote_call(preprocess_key=True)
 	def __getitem__(self, key):
-		key = self.key_preprocessor(key)
-		try:
-			return self.manager[key]._getvalue()
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __getitem__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			return self.manager[key]._getvalue()
+		return self.manager[key]._getvalue()
 
+	@_handle_remote_call(preprocess_key=True)
 	def __setitem__(self, key, value):
-		key = self.key_preprocessor(key)
-		try:
-			self.manager[key] = value
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __setitem__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			self.manager[key] = value
+		self.manager[key] = value
 
+	@_handle_remote_call(preprocess_key=True)
 	def __delitem__(self, key):
-		key = self.key_preprocessor(key)
-		try:
-			del self.manager[key]
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __delitem__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			del self.manager[key]
+		del self.manager[key]
 
+	@_handle_remote_call(preprocess_key=True)
 	def __contains__(self, key):
-		key = self.key_preprocessor(key)
-		try:
-			return self.manager.__contains__(key)._getvalue()
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __contains__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			return self.manager.__contains__(key)._getvalue()
+		return self.manager.__contains__(key)._getvalue()
 
+	@_handle_remote_call(preprocess_key=False)
 	def __str__(self):
-		try:
-			return self.manager.__str__()._getvalue()
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __str__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			return self.manager.__str__()._getvalue()
+		return self.manager.__str__()._getvalue()
 
 
 class SharedMemoizer(Memoizer):
@@ -170,12 +181,12 @@ class SharedMemoizer(Memoizer):
 		if args or kwargs:
 			params = self.process_params(args, kwargs)
 			if function in self.results_cache and params in self.results_cache[function]:
-				logging.debug(f'Removing unwrapped function {function} with params {params} from cache')
+				logger.debug(f'Removing unwrapped function {function} with params {params} from cache')
 				local = self.results_cache[function]
 				del local[params]
 				self.results_cache[function] = local
 			elif wrapped_func in self.results_cache and params in self.results_cache[wrapped_func]:
-				logging.debug(f'Removing wrapped function {function} with params {params} from cache')
+				logger.debug(f'Removing wrapped function {function} with params {params} from cache')
 				local = self.results_cache[wrapped_func]
 				del local[params]
 				self.results_cache[wrapped_func] = local
@@ -183,10 +194,10 @@ class SharedMemoizer(Memoizer):
 				raise KeyError(f'Function {function} with params {params} not in cache')
 		else:
 			if function in self.results_cache:
-				logging.debug(f'Removing unwrapped function {function} from cache')
+				logger.debug(f'Removing unwrapped function {function} from cache')
 				del self.results_cache[function]
 			elif wrapped_func in self.results_cache:
-				logging.debug(f'Removing wrapped function {function} from cache')
+				logger.debug(f'Removing wrapped function {function} from cache')
 				del self.results_cache[wrapped_func]
 			else:
 				raise KeyError(f'Function {function} not in cache')
