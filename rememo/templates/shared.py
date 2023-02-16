@@ -57,8 +57,8 @@ class RemoteCacheWrapper:
 		try:
 			self._connect(address, authkey)
 		except ConnectionRefusedError as _:
-			logger.info('Failed to connect to cache server.')
-			logger.info(f'Establishing cache server at address {address}.')
+			logger.warn('Failed to connect to cache server.')
+			logger.warn(f'Establishing cache server at address {address}.')
 			self.cache_server = CacheServer(
 				address=address,
 				authkey=authkey,
@@ -76,7 +76,22 @@ class RemoteCacheWrapper:
 		logger.info('Connected.')
 
 	def _handle_remote_call(preprocess_key: bool = True):
-		def decorator(function):
+		"""
+		Decorator that provides exception handling and key preprocessing for
+		functions called on the cache manager.
+
+		Functions wrapped in this decorator will, upon receiving a
+		ConnectionRefusedError, attempt to reconnect to the cache manager. If
+		*that* fails, the RemoteCacheWrapper will attempt to create a new cache
+		manager and connect to that. If that *also* fails, an exception will be
+		raised.
+
+		Args:
+			preprocess_key (bool, optional): Whether this method should
+				preprocess the key, which must be the first argument to the
+				method. Defaults to True.
+		"""
+		def _handle_remote_call_decorator(function):
 			@wraps(function)
 			def remote_call_wrapper(self, *args, **kwargs) -> Any:
 				if preprocess_key is True:
@@ -88,7 +103,7 @@ class RemoteCacheWrapper:
 					self._connect_or_establish_manager(self.address, self.authkey)
 					return function(self, *args, **kwargs)
 			return remote_call_wrapper
-		return decorator
+		return _handle_remote_call_decorator
 
 	@_handle_remote_call(preprocess_key=True)
 	def __getitem__(self, key):
