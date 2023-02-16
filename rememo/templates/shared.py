@@ -74,49 +74,84 @@ class RemoteCacheWrapper:
 		self.manager.connect()
 		logging.info('Connected.')
 
-	def __getitem__(self, key):
-		key = self.key_preprocessor(key)
+	def _call_remote(self, method, *args, preprocess_key: bool = True, **kwargs):
+		if preprocess_key is True:
+			args = (self.key_preprocessor(args[0]), *args[1:])
 		try:
-			return self.manager[key]._getvalue()
+			return method(*args, **kwargs)
 		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __getitem__ on cache server: {e}')
+			logging.warn(f'Failed to call {method} on cache server: {e}')
 			self._connect_or_establish_manager(self.address, self.authkey)
+			return method(*args, **kwargs)
+
+	def __getitem__(self, key):
+		def _call(key, *_, **__):
 			return self.manager[key]._getvalue()
+		return self._call_remote(_call, key, preprocess_key=True)
 
 	def __setitem__(self, key, value):
-		key = self.key_preprocessor(key)
-		try:
+		def _call(key, value, *_, **__):
 			self.manager[key] = value
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __setitem__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			self.manager[key] = value
+		return self._call_remote(_call, key, value, preprocess_key=True)
 
-	def __delitem__(self, key):
-		key = self.key_preprocessor(key)
-		try:
+	def __detitem__(self, key):
+		def _call(key, *_, **__):
 			del self.manager[key]
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __delitem__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			del self.manager[key]
+		return self._call_remote(_call, key, preprocess_key=True)
 
 	def __contains__(self, key):
-		key = self.key_preprocessor(key)
-		try:
+		def _call(key, *_, **__):
 			return self.manager.__contains__(key)._getvalue()
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __contains__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			return self.manager.__contains__(key)._getvalue()
+		return self._call_remote(_call, key, preprocess_key=True)
 
 	def __str__(self):
-		try:
+		def _call(*_, **__):
 			return self.manager.__str__()._getvalue()
-		except ConnectionRefusedError as e:
-			logging.warn(f'Failed to call __str__ on cache server: {e}')
-			self._connect_or_establish_manager(self.address, self.authkey)
-			return self.manager.__str__()._getvalue()
+		return self._call_remote(_call, preprocess_key=False)
+
+	# def __getitem__(self, key):
+	# 	key = self.key_preprocessor(key)
+	# 	try:
+	# 		return self.manager[key]._getvalue()
+	# 	except ConnectionRefusedError as e:
+	# 		logging.warn(f'Failed to call __getitem__ on cache server: {e}')
+	# 		self._connect_or_establish_manager(self.address, self.authkey)
+	# 		return self.manager[key]._getvalue()
+
+	# def __setitem__(self, key, value):
+	# 	key = self.key_preprocessor(key)
+	# 	try:
+	# 		self.manager[key] = value
+	# 	except ConnectionRefusedError as e:
+	# 		logging.warn(f'Failed to call __setitem__ on cache server: {e}')
+	# 		self._connect_or_establish_manager(self.address, self.authkey)
+	# 		self.manager[key] = value
+
+	# def __delitem__(self, key):
+	# 	key = self.key_preprocessor(key)
+	# 	try:
+	# 		del self.manager[key]
+	# 	except ConnectionRefusedError as e:
+	# 		logging.warn(f'Failed to call __delitem__ on cache server: {e}')
+	# 		self._connect_or_establish_manager(self.address, self.authkey)
+	# 		del self.manager[key]
+
+	# def __contains__(self, key):
+	# 	key = self.key_preprocessor(key)
+	# 	try:
+	# 		return self.manager.__contains__(key)._getvalue()
+	# 	except ConnectionRefusedError as e:
+	# 		logging.warn(f'Failed to call __contains__ on cache server: {e}')
+	# 		self._connect_or_establish_manager(self.address, self.authkey)
+	# 		return self.manager.__contains__(key)._getvalue()
+
+	# def __str__(self):
+	# 	try:
+	# 		return self.manager.__str__()._getvalue()
+	# 	except ConnectionRefusedError as e:
+	# 		logging.warn(f'Failed to call __str__ on cache server: {e}')
+	# 		self._connect_or_establish_manager(self.address, self.authkey)
+	# 		return self.manager.__str__()._getvalue()
 
 
 class SharedMemoizer(Memoizer):
