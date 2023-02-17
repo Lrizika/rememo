@@ -38,6 +38,7 @@ class CacheServer:
 		self.manager.register('__reversed__', self.cache.__reversed__)
 		self.manager.register('__iter__', self.cache.__iter__)
 		self.manager.register('__str__', self.cache.__str__)
+		self.manager.register('ping', lambda: True)
 		self.manager.start()
 
 
@@ -60,6 +61,10 @@ class RemoteCacheWrapper:
 			authkey=authkey,
 		)
 
+	@property
+	def is_host(self):
+		return hasattr(self, 'cache_server')
+
 	def _connect_or_establish_manager(self, address, authkey):
 		try:
 			self._connect(address, authkey)
@@ -76,6 +81,8 @@ class RemoteCacheWrapper:
 		self.manager.register('__setitem__')
 		self.manager.register('__delitem__')
 		self.manager.register('__contains__')
+		self.manager.register('__str__')
+		self.manager.register('ping')
 		self.manager.connect()
 		logger.info('Connected.')
 
@@ -128,6 +135,10 @@ class RemoteCacheWrapper:
 	@_handle_remote_call(preprocess_key=False)
 	def __str__(self):
 		return self.manager.__str__()._getvalue()
+
+	@_handle_remote_call(preprocess_key=False)
+	def ping(self):
+		self.manager.ping()
 
 
 class SharedMemoizer(Memoizer):
