@@ -18,5 +18,9 @@ if __name__ == '__main__':
 	if ('-vv' in sys.argv) or ('--very-verbose' in sys.argv):
 		logging.basicConfig(level=logging.DEBUG, format='    %(funcName)s %(message)s')
 		verbosity = 3
+	if ('--quietlogging' in sys.argv):
+		logging.disable(logging.WARNING)
+	if ('--nologging' in sys.argv):
+		logging.disable(logging.CRITICAL)
 	suite = unittest.TestLoader().discover('tests', pattern='test*.py')
 	result = unittest.TextTestRunner(verbosity=verbosity).run(suite)
