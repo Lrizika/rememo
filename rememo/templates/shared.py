@@ -42,12 +42,32 @@ class CacheServer:
 		self.manager.start()
 
 
-class RemoteCacheWrapper:
+class RemoteCache:
+	"""
+	A remote cache that provides dict-like methods for access.
+		A RemoteCache instance will try to connect to an existing CacheServer,
+		and if unable will host its own then connect to that one. It will also
+		host a new CacheServer in the event it loses connection to the old one
+		and is unable to reconnect.
+
+	Attributes:
+		key_preprocessor (callable, optional): A method to be called on keys
+			before accessing the cache. Used for changing functions into
+			serializable strings, usually.
+		address (Tuple[str, int], optional): The address for the CacheServer.
+			Defaults to port 50000 on localhost.
+		authkey (bytes, optional): Authentication key for the CacheServer.
+			Defaults to an empty bytestring.
+
+	Properties:
+		is_host (bool): Whether this RemoteCache is currently acting as the
+			host for the CacheServer.
+	"""
 	def __init__(
 			self,
 			key_preprocessor: callable = lambda v: v,
 			address: Tuple[str, int] = ('localhost', 50000),
-			authkey: Optional[bytes] = b'',
+			authkey: bytes = b'',
 	):
 		self.key_preprocessor = key_preprocessor
 		self.address = address
@@ -62,7 +82,7 @@ class RemoteCacheWrapper:
 		)
 
 	@property
-	def is_host(self):
+	def is_host(self) -> bool:
 		return hasattr(self, 'cache_server')
 
 	def _connect_or_establish_manager(self, address, authkey):
@@ -93,7 +113,7 @@ class RemoteCacheWrapper:
 
 		Functions wrapped in this decorator will, upon receiving a
 		ConnectionRefusedError, attempt to reconnect to the cache manager. If
-		*that* fails, the RemoteCacheWrapper will attempt to create a new cache
+		*that* fails, the RemoteCache will attempt to create a new cache
 		manager and connect to that. If that *also* fails, an exception will be
 		raised.
 
@@ -146,7 +166,7 @@ class SharedMemoizer(Memoizer):
 	Memoizer that can be shared across multiple processes
 		Uses multiprocessing.Manager
 	Attributes:
-		results_cache: A RemoteCacheWrapper instance.
+		results_cache: A RemoteCache instance.
 			This functions (nearly) identically to the results_cache on
 			a standard Memoizer, but is actually a wrapper that allows
 			access to a local or remote cache hosted by a CacheServer.
@@ -160,7 +180,7 @@ class SharedMemoizer(Memoizer):
 			**kwargs
 	):
 		super().__init__(**kwargs)
-		self.results_cache = RemoteCacheWrapper(
+		self.results_cache = RemoteCache(
 			key_preprocessor=serialize_function_method,
 			address=address,
 			authkey=authkey
@@ -169,7 +189,7 @@ class SharedMemoizer(Memoizer):
 	def _call_and_add_result(self, function: callable, *args, **kwargs) -> None:
 		'''
 		Calls the function and adds it to the cache.
-		Because of how RemoteCacheWrappers work, the standard
+		Because of how RemoteCaches work, the standard
 		results_cache[function][params] method does not work for SharedMemoizers -
 		specifically, __getitem__ returns a local copy of the cache, and thus mutating
 		values in it does not update them on the remote.
@@ -185,7 +205,7 @@ class SharedMemoizer(Memoizer):
 		'''
 		Clears a result or all results for a function from the cache.
 		As with _call_and_add_result, we have to override this to work with
-		RemoteCacheWrappers properly
+		RemoteCaches properly
 		'''
 
 		wrapped_func = getattr(function, '__wrapped__', None)
