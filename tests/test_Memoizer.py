@@ -9,12 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class TestMemoizer(unittest.TestCase):
-	def test_memoizes(self):
-		m = rememo.Memoizer()
+	def setUp(self):
+		self.memoizer = rememo.Memoizer()
 
+	def tearDown(self):
+		del self.memoizer
+
+	def test_memoizes(self):
 		called_count = 0
 
-		@m.memo
+		@self.memoizer.memo
 		def testfunc(val):
 			nonlocal called_count
 			called_count += 1
@@ -32,24 +36,20 @@ class TestMemoizer(unittest.TestCase):
 		)
 
 	def test_in_results_cache(self):
-		m = rememo.Memoizer()
-
-		@m.memo
+		@self.memoizer.memo
 		def testfunc(val):
 			return val + 2
 
 		result = testfunc(5)
 		self.assertEqual(
-			m.get_result(testfunc, 5),
+			self.memoizer.get_result(testfunc, 5),
 			result
 		)
 
 	def test_get_result(self):
-		m = rememo.Memoizer()
-
 		called_count = 0
 
-		@m.memo
+		@self.memoizer.memo
 		def testfunc(val):
 			nonlocal called_count
 			called_count += 1
@@ -57,19 +57,17 @@ class TestMemoizer(unittest.TestCase):
 
 		testfunc(2)
 		testfunc(2)
-		m.get_result(testfunc.__wrapped__, 2)
+		self.memoizer.get_result(testfunc.__wrapped__, 2)
 		self.assertEqual(called_count, 1)
 
-		m.get_result(testfunc.__wrapped__, 3)
+		self.memoizer.get_result(testfunc.__wrapped__, 3)
 		self.assertEqual(called_count, 2)
 
-		m.get_result(testfunc, 5)
+		self.memoizer.get_result(testfunc, 5)
 		self.assertEqual(called_count, 3)
 
 	def test_cache_removal(self):
-		m = rememo.Memoizer()
-
-		@m.memo
+		@self.memoizer.memo
 		def testfunc(v):
 			return time.time(), v
 
@@ -82,7 +80,7 @@ class TestMemoizer(unittest.TestCase):
 
 		result_3_1 = testfunc(3)
 		# Remove a function with a specific parameter from the cache
-		m.remove_from_cache(testfunc, 2)
+		self.memoizer.remove_from_cache(testfunc, 2)
 
 		result_2_3 = testfunc(2)
 		self.assertNotEqual(
@@ -96,7 +94,7 @@ class TestMemoizer(unittest.TestCase):
 			result_3_2
 		)
 		# Remove a function entirely from the cache
-		m.remove_from_cache(testfunc)
+		self.memoizer.remove_from_cache(testfunc)
 
 		result_3_3 = testfunc(3)
 		self.assertNotEqual(
